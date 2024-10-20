@@ -1,0 +1,169 @@
+package com.example.databaseapp;
+
+import android.content.ContentProvider;
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.content.UriMatcher;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+public class MyContentProvider extends ContentProvider {
+    //Authority is a unique identifier that specifies the Content Provider:  typically a string that resembles a package name
+    static final String AUTHORITY = "com.example.databaseapp.provider";
+
+    //Content URI : content://<authority>/<table_name>
+    public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/" + DBHandler.TABLE_NAME);
+
+    // UriMatcher codes
+    private static final int STUDENTS = 1;
+    private static final int STUDENT_ID = 2;
+
+    //UriMatcher is a utility class that helps in matching URI requests to specific actions in a Content Provider
+    //UriMatcher.NO_MATCH: This constant is used to initialize the UriMatcher and indicates that no match has been found yet. It serves as a default value when no specific URI is matched.
+    private static final UriMatcher uriMatcher=new UriMatcher(UriMatcher.NO_MATCH);
+
+    static {
+        //uriMatcher: This is an instance of the UriMatcher class, which is used to match incoming URIs to predefined patterns
+        //addURI() Method: This method registers a new URI pattern with the UriMatcher
+
+        //STUDENTS (value =1) :handle request for all students: entire table
+        uriMatcher.addURI(AUTHORITY, DBHandler.TABLE_NAME, STUDENTS);
+
+        //STUDENT_ID (value =2) : handle request for a specific student: a specific row in a table
+        uriMatcher.addURI(AUTHORITY, DBHandler.TABLE_NAME + "/#", STUDENT_ID);
+    }
+
+    private DBHandler dbHandler;
+
+    @Override
+    public boolean onCreate() {
+        // Initialize the DBHandler
+        dbHandler = new DBHandler(getContext());
+        return true;
+    }
+
+    //query() method: retrieving data from a database as a Cursor object/objects
+    //Uri uri: URI that was used to request the data. It helps determine which specific data the caller wants to access (e.g., all students or a specific student).
+    //String[] projection: array of column names that the caller wants to retrieve. If set to null, all columns will be returned.
+    //String selection: SQL-like WHERE clause to filter the rows returned. It specifies conditions that the rows must meet to be included in the result set. For example, id = ?.
+    //String[] selectionArgs: array of values that will replace placeholders (?) in the selection string
+    //String sortOrder: specifies how the results should be sorted (e.g., by name or date). eg: name ASC for ascending order by name.
+    @Override
+    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+        SQLiteDatabase db = dbHandler.getReadableDatabase();
+
+        Cursor cursor;
+
+        int match = uriMatcher.match(uri);//determine which specific URI pattern an incoming URI corresponds to
+        switch (match) {
+
+            case STUDENTS:
+                // Query all students
+                cursor= db.query(DBHandler.TABLE_NAME,projection,selection,selectionArgs,null,null,sortOrder);
+               //null (groupBy):for grouping the results. If you do not need to group your results, you can pass null.
+                //null (having): This parameter is used in conjunction with groupBy to filter the results of the groups. If not needed, it can also be set to null.
+                break;
+
+            case STUDENT_ID:
+                // Query specific student by ID
+                selection=DBHandler.ID + "=?";
+                selectionArgs=new String[] {String.valueOf(ContentUris.parseId(uri))};
+                //ContentUris.parseId(uri):  extract the ID from a URI that represents a specific item in a Content Provider.
+                //eg: content://com.example.provider/students/5, the number 5 is the ID of a specific student.
+                cursor= db.query(DBHandler.TABLE_NAME,projection,selection,selectionArgs,null,null,sortOrder);
+                break;
+
+            default:
+                throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
+        cursor.setNotificationUri(getContext().getContentResolver(), uri);
+        //By setting a notification URI on a Cursor, you inform the system that this Cursor is associated with specific data.
+
+        return cursor;
+        //return matching rows
+    }
+
+
+
+    //insert() :This method is called when a client application wants to add a new record to the data managed by the Content Provider.
+    // It takes the necessary data encapsulated in a ContentValues object and stores it in the appropriate database table.
+    //Uri uri: represents the URI that specifies where the data should be inserted. eg: content://com.example.provider/students indicates that a new student record should be added.
+    //ContentValues values: ContentValues object that contains the key-value pairs of the data to be inserted. Each key corresponds to a column name in the database table, and each value is the data to be inserted into that column.
+    @Override
+    public Uri insert(Uri uri, ContentValues values) {
+
+        SQLiteDatabase db = dbHandler.getWritableDatabase();
+
+        long id= db.insert(DBHandler.TABLE_NAME,null,values);
+        //nullColumnHack:This parameter is used to specify a column that should be given a default value if the ContentValues is empty.
+        //long id: This variable stores the return value of the insert() method, which is the row ID of the newly inserted row.
+
+        Uri newUri= ContentUris.withAppendedId(CONTENT_URI,id);
+        //ContentUris.withAppendedId(CONTENT_URI,id): create a new URI that includes a specific record ID, making it easy to reference that individual record in a Content Provider.
+
+        getContext().getContentResolver().notifyChange(newUri,null);
+        //getContext(): retrieves the current context associated with the Content Provider.
+        //getContentResolver():  returns an instance of ContentResolver, which is responsible for communicating with Content Providers. It allows clients to perform operations like querying, inserting, updating, and deleting data.
+        //notifyChange(newUri,null):  notifies any registered observers that the data at the specified URI (newUri) has changed. The second parameter can be used to pass an optional Bundle of extras if needed; here, it is set to null, indicating that no additional information is provided.
+
+        return newUri;
+        //returns uri of the updated record
+    }
+
+
+    //delete(): handles the deletion of data from a database
+    //arguments: uri of record to be deleted, selection clause, string to replace ? in selection (explained above)
+    @Override
+    public int delete(Uri uri, String selection, String[] selectionArgs) {
+        SQLiteDatabase db = dbHandler.getWritableDatabase();
+
+        int rowsDeleted=db.delete(DBHandler.TABLE_NAME,selection,selectionArgs);
+        //rowsDeleted: stores the return value of the delete() method, which indicates how many rows were successfully deleted from the database.
+
+        getContext().getContentResolver().notifyChange(uri,null);
+
+        return rowsDeleted;
+        //return no.of rows deleted
+    }
+
+
+
+    //update(): handles updating existing records in a SQLite database
+    //arguments: record to be updated, new values to be inserted, selection clause, selection string
+    @Override
+    public int update(Uri uri,ContentValues values,String selection,String[] selectionArgs) {
+        SQLiteDatabase db = dbHandler.getWritableDatabase();
+
+        int rowsUpdated=db.update(DBHandler.TABLE_NAME,values,selection,selectionArgs);
+        //rowsUpdated: no. of rows updated
+
+        getContext().getContentResolver().notifyChange(uri,null);
+
+        return rowsUpdated;
+    }
+
+   //getType():return the MIME type of data associated with a given URI.
+    //MIME (Multipurpose Internet Mail Extensions) types are a standard way of specifying the nature and format of files or data transmitted over the internet
+    @Override
+    public String getType(Uri uri) {
+        int match = uriMatcher.match(uri);
+
+        switch (match) {
+            //vendor/android_platform/cursor_result_from_query (part of the MIME type convention used in Android applications)
+            //dir: multiple records or directory of items
+            //item: single record/single item
+
+            case STUDENTS:
+                return "vnd.android.cursor.dir/" + AUTHORITY + "." + DBHandler.TABLE_NAME;
+
+            case STUDENT_ID:
+                return "vnd.android.cursor.item/" + AUTHORITY + "." + DBHandler.TABLE_NAME;
+
+            default:
+                throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
+    }
+}

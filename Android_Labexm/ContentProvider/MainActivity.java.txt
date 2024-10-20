@@ -1,0 +1,138 @@
+package com.example.databaseapp;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Bundle;
+
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+//import the following
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+
+public class MainActivity extends AppCompatActivity {
+    private EditText stud_name,stud_course,stud_semester;
+    private DBHandler dbHandler;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
+        //initialize
+        stud_name=findViewById(R.id.text_name);
+        stud_course=findViewById(R.id.text_course);
+        stud_semester=findViewById(R.id.text_sem);
+
+        //create a new DBHandler object and pass context to it
+        dbHandler=new DBHandler(MainActivity.this);
+    }
+    public void addStudent(View v)
+    {
+        //GET THE DATA TO BE INSERTED FROM EDITTEXT FIELDS
+        String studentName=stud_name.getText().toString();
+        String studentCourse=stud_course.getText().toString();
+        int studentSemester=Integer.parseInt(stud_semester.getText().toString());
+
+        // validating if any of the text fields are empty or not.
+        if (studentName.equals("") || studentCourse.equals("") || stud_semester.equals("")) {
+            Toast.makeText(MainActivity.this, "Please enter all the data..", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        //insert data to the database through the content provider (without DBHandler)
+        //class to add values in the database
+        ContentValues values = new ContentValues();
+        //values.put(column_name,data)
+        values.put("name", studentName);
+        values.put("course", studentCourse);
+        values.put("semester", studentSemester);
+
+        // inserting into database through content URI
+        getContentResolver().insert(MyContentProvider.CONTENT_URI, values);
+        //getContentResolver(): The ContentResolver is responsible for interacting with Content Providers, allowing for operations such as querying, inserting, updating, and deleting data.
+        //MyContentProvider.CONTENT_URI:static constant that represents the URI of the Content Provider where the new data will be inserted.
+
+        // displaying a toast message
+        Toast.makeText(MainActivity.this, "Student is added",Toast.LENGTH_LONG).show();
+        //clear the EditText fields
+        stud_name.setText("");
+        stud_course.setText("");
+        stud_semester.setText("");
+    }
+
+    public void lookupStudent(View v)
+    {
+        //edit the method to display all students from the table
+        TextView resultView= (TextView) findViewById(R.id.display_tv);
+
+        // creating a cursor object of the content URI to display all students
+        Cursor cursor = getContentResolver().query(Uri.parse("content://com.example.databaseapp.provider/student_details"), null, null, null, null);
+
+        // iteration of the cursor to print whole table
+        if(cursor.moveToFirst()) {
+            //build a string to add each data
+            StringBuilder studentData=new StringBuilder();
+            while (!cursor.isAfterLast()) {
+                int id = Integer.parseInt(cursor.getString(0));
+                String name = cursor.getString(1);
+                String course = cursor.getString(2);
+                int semester = Integer.parseInt(cursor.getString(3));
+                studentData.append("ID:").append(id);
+                studentData.append("Name:").append(name);
+                studentData.append("Course:").append(course);
+                studentData.append("Semester:").append(semester).append("\n");
+                //move to next record
+                cursor.moveToNext();
+            }
+            resultView.setText(studentData);
+        }
+        else {
+            resultView.setText("No Records Found");
+        }
+    }
+
+
+    public void removeStudent(View v)
+    {
+        //no changes: delete students through DBHandler
+        String studentName=stud_name.getText().toString();
+        boolean result=dbHandler.deleteStudent(studentName);
+        if (result)
+        {
+            Toast.makeText(MainActivity.this,"Record Deleted",Toast.LENGTH_SHORT).show();
+            stud_name.setText("");
+            stud_course.setText("");
+            stud_semester.setText("");
+        }
+        else
+            Toast.makeText(MainActivity.this,"No Match Found",Toast.LENGTH_SHORT).show();
+        }
+
+        public void modifyStudentDetails(View v)
+        {
+            //no changes: update records through DBHandler
+            String studentName=stud_name.getText().toString();
+            String studentCourse=stud_course.getText().toString();
+            int studentSemester=Integer.parseInt(stud_semester.getText().toString());
+            dbHandler.updateStudent(studentName,studentCourse,studentSemester);
+            Toast.makeText(MainActivity.this,"Record Updated",Toast.LENGTH_SHORT).show();
+            stud_name.setText("");
+            stud_course.setText("");
+            stud_semester.setText("");
+        }
+}
