@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">DataBaseApp</string>
+    <string name="please_enter_all_the_data">Please enter all the data..</string>
+    <string name="student_is_added">Student is added</string>
+</resources>
