@@ -133,8 +133,8 @@
             android:id="@+id/button4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:onClick="findstud"
-            android:text="search" />
+            android:onClick="delt"
+            android:text="delete" />
 
         <Button
             android:id="@+id/button5"

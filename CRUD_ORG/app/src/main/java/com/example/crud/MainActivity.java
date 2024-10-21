@@ -72,4 +72,22 @@ public class MainActivity extends AppCompatActivity {
         intent.putStringArrayListExtra("studentList", studentData);
         startActivity(intent);
     }
+
+    public void delt(View view){
+        String student_name=ed4.getText().toString();
+        dbHandler.delete_s(student_name);
+        Toast.makeText(MainActivity.this,"Deleted",Toast.LENGTH_SHORT).show();
+        ed4.setText("");
+    }
+    public void updstud(View view){
+        String student_name=ed4.getText().toString();
+        String new_name=ed1.getText().toString();
+        String new_course=ed2.getText().toString();
+        String new_sem=ed3.getText().toString();
+        dbHandler.update_s(student_name,new_name,new_course,new_sem);
+        Toast.makeText(MainActivity.this,"Updated",Toast.LENGTH_SHORT).show();
+    }
+
+
+
 }
