@@ -1,0 +1,79 @@
+package com.example.progress_thread;
+
+import android.os.Bundle;
+
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+//import the following
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+
+public class MainActivity extends AppCompatActivity {
+
+    //declare reference objects for widgets
+    private ProgressBar progressBar;
+    private TextView progressText;
+    private Button button;
+    //create a variable to count from 0 to 100
+    private int progress=0;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        //create reference objects for widgets
+        progressBar = findViewById(R.id.progressBar);
+        progressText = findViewById(R.id.tv);
+        button= findViewById(R.id.button);
+}
+    public void submit(View v)
+    {
+        button.setEnabled(false); // Disable the button while the task starts running, after button is clicked once
+        progressBar.setVisibility(View.VISIBLE); //Display the progress bar, by default the visibility may be View.GONE
+
+        // Start the worker thread
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //updating the variable "progress" from 0 to 100 using a for loop
+                for (progress = 0; progress <= 100; progress += 1) {
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+value of progress increments
+                     runOnUiThread(new Runnable() {
+                        @Override
+                            public void run() {
+                                //update the progress text everytime increment occurs for the variable "progress"
+                                 progressBar.setProgress(progress);
+                                 progressText.setText("Progress: " + progress + "%");
+                            }
+                    }); //end runOnUiThread
+                  
+                }   //end the for loop
+
+                // Notify the user on completion
+                runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            //After the task is completed, button can be again enabled
+                            button.setEnabled(true);
+                            //TextView displays a message COMPLETED
+                            progressText.setText("COMPLETED");
+                            //progressBar.setVisibility(View.GONE); can be used for making progress bar invisible (optional)
+                        }
+                    }); //end runOnUiThread
+            }
+        }).start(); //end the worker thread
+    }
+}
